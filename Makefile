@@ -33,5 +33,5 @@ kafka-operator: cluster
 kafka-cluster: kafka-operator
 	@echo "Creating Kafka cluster"
 	kubectl apply -f kafka-cluster.yaml -n $(NAMESPACE)
-	bash scripts/wait_for_resource.sh kafka my-kafka-cluster $(NAMESPACE)
+	bash scripts/wait_for_resource.sh kafka kafka-cluster-1 $(NAMESPACE)
 

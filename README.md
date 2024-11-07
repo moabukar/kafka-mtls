@@ -7,10 +7,10 @@ Lab going through the following:
 
 ## Prerequisites
 
-- kind
-- kubectl
+- [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl)
 - openssl
-- keytool
+- [keytool + java](https://www.andrewhoog.com/post/3-ways-to-install-java-on-macos-2023/)
 - basic knowledge of kafka & ssl/tls
 
 ## Setup
@@ -21,12 +21,14 @@ make cluster
 
 # install strimzi operator
 make kafka-operator
+
+make kafka-cluster
 ```
 
 ## TLS steps
 
 ```bash
-kubectl get secret kafka-cluster-1-cluster-ca-cert -o jsonpath='{.data.ca\.crt}' | base64 --decode > ca.crt
+kubectl -n kafka get secret kafka-cluster-1-cluster-ca-cert -o jsonpath='{.data.ca\.crt}' | base64 --decode > ca.crt
 
 
 ## Generate the truststore using the above CA certificate
@@ -38,9 +40,9 @@ keytool -import -trustcacerts -alias root -file ca.crt -keystore truststore.jks 
 ## Client side TLS aka mTLS
 
 ```bash
-kubectl get secret kafka-cluster-1-clients-ca-cert -o jsonpath='{.data.ca\.crt}' | base64 --decode > client-ca.crt
+kubectl -n kafka get secret kafka-cluster-1-clients-ca-cert -o jsonpath='{.data.ca\.crt}' | base64 --decode > client-ca.crt
 
-kubectl get secret kafka-cluster-1-clients-ca -o jsonpath='{.data.ca\.key}' | base64 --decode > client-ca.key
+kubectl -n kafka get secret kafka-cluster-1-clients-ca -o jsonpath='{.data.ca\.key}' | base64 --decode > client-ca.key
 
 # Generate the client keystore (in ssl directory)
 keytool -keystore ssl/kafka.client.keystore.jks -alias client -validity 365 -genkey -keyalg RSA -storepass password
@@ -62,5 +64,35 @@ keytool -keystore ssl/kafka.client.keystore.jks -alias client -import -file ssl/
 ## Test
 
 ```bash
-kafka-console-producer.sh --broker-list kafka-cluster-1-kafka-bootstrap.kafka.svc.cluster.local:9093 --topic test-topic --producer.config config/client.properties
+# To retrieve the bootstrap server details for the Kubernetes Kafka cluster, use the following command and copy the bootstrap server along with port for external listener:
+
+kubectl -n kafka describe kafka kafka-cluster-1
+
+brew install chipmk/tap/docker-mac-net-connect
+sudo brew services start chipmk/tap/docker-mac-net-connect
+
+sudo brew services list
+
+## export KAFKA_HEAP_OPTS="-Xmx512M" ## optional for more heap size in case of large messages and high throughput etc
+
+
+# 172.18.0.2:32622,172.18.0.4:32622
+/opt/homebrew/bin/kafka-topics --bootstrap-server 172.18.0.2:32622 --list --command-config config/client.properties
+
+/opt/homebrew/bin/kafka-topics --bootstrap-server 172.18.0.4:32622 --list --command-config config/client.properties
+
+
+
+./bin/kafka-topic.sh --bootstrap-server <bootstrap server and port copied in step 1> —-list --command-config config/client.properties
+
+./bin/kafka-topic.sh --bootstrap-server 172.18.0.2:32622 —-list --command-config config/client.properties
+
+
+# producing to topic
+./bin/kafka-console-producer.sh --bootstrap-server <bootstrap server and port copied in step 1> --topic <topic name> --producer.config config/client.properties
+
+# consuming from topic
+./bin/kafka-console-consumer.sh --bootstrap-server <bootstrap server and port copied in step 1> --from-beginning --topic <topic name> --consumer.config config/client.properties
+
+
 ```

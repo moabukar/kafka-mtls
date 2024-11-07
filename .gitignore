@@ -1,6 +1,8 @@
 .DS_Store
 .env
 **.crt
+**.key
+**.srl
 **.jks
 **.pem
 **.p12
